@@ -6,6 +6,9 @@ class ScanResponse(BaseModel):
     id: str
     user_id: int
     file_url: str
+    original_filename: str
+    file_size: int
+    mime_type: str
     status: ScanStatus
     uploaded_at: datetime
 

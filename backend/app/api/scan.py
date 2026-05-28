@@ -1,13 +1,14 @@
 import os
 import secrets
 import logging
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.scan import Scan, ScanStatus
 from app.models.user import User
-from app.schemas.scan_schema import ScanUploadResponse
+from app.schemas.scan_schema import ScanResponse, ScanUploadResponse
 from app.services.storage_service import storage_service
 from app.workers.tasks import process_scan
 
@@ -143,4 +144,21 @@ async def upload_scan(
         status=ScanStatus.UPLOADED,
         message="Scan uploaded successfully"
     )
+
+@router.get("", response_model=List[ScanResponse])
+async def list_scans(db: Session = Depends(get_db)):
+    """List all scans ordered by uploaded_at descending."""
+    scans = db.query(Scan).order_by(Scan.uploaded_at.desc()).all()
+    return scans
+
+@router.get("/{scan_id}", response_model=ScanResponse)
+async def get_scan(scan_id: str, db: Session = Depends(get_db)):
+    """Get details of a single scan."""
+    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+    if not scan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scan with ID '{scan_id}' not found"
+        )
+    return scan
 
