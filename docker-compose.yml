@@ -1,0 +1,103 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://user:password@postgres:5432/medvision
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - S3_BUCKET_NAME=medvision-data
+    depends_on:
+      - postgres
+      - redis
+      - minio
+
+  celery-worker:
+    build: ./backend
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://user:password@postgres:5432/medvision
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - S3_BUCKET_NAME=medvision-data
+    depends_on:
+      - postgres
+      - redis
+      - minio
+
+  ai-service:
+    build: ./ai-service
+    volumes:
+      - ./ai-service:/app
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - S3_BUCKET_NAME=medvision-data
+    depends_on:
+      - redis
+      - minio
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=medvision
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/medvision-data --ignore-existing;
+      /usr/bin/mc anonymous set public myminio/medvision-data;
+      exit 0;
+      "
+
+volumes:
+  postgres_data:
+  minio_data:

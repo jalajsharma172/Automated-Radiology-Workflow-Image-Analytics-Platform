@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node/Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project local tests / media
+test_scan.dcm
+test_scan.png
+test_async.dcm
+test_upload_manual.dcm
