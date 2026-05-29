@@ -6,6 +6,7 @@ import redis
 import boto3
 
 from app.api.scan import router as scan_router
+from app.api.study import router as study_router
 from app.core.database import get_db
 from app.core.config import settings
 
@@ -80,3 +81,4 @@ async def health_check(db: Session = Depends(get_db)):
     return health_status
 
 app.include_router(scan_router)
+app.include_router(study_router)

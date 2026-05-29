@@ -162,3 +162,76 @@ async def get_scan(scan_id: str, db: Session = Depends(get_db)):
         )
     return scan
 
+
+@router.get("/{scan_id}/metadata")
+async def get_scan_metadata(scan_id: str, db: Session = Depends(get_db)):
+    """Extract metadata headers dynamically from the uploaded DICOM file."""
+    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+    if not scan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scan with ID '{scan_id}' not found"
+        )
+    
+    _, ext = os.path.splitext(scan.original_filename.lower())
+    if ext != ".dcm":
+        return {
+            "modality": "Standard Image",
+            "number_of_frames": 1,
+            "original_filename": scan.original_filename
+        }
+        
+    try:
+        from app.services.dicom_service import extract_dicom_metadata
+        stream = storage_service.download_scan_stream(scan_id, ext)
+        metadata = extract_dicom_metadata(stream)
+        return metadata
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read DICOM metadata: {str(e)}"
+        )
+
+
+@router.get("/{scan_id}/render")
+async def render_scan_frame(
+    scan_id: str,
+    frame: int = 0,
+    db: Session = Depends(get_db)
+):
+    """Render a specific frame of a DICOM file (or standard image) as PNG."""
+    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+    if not scan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scan with ID '{scan_id}' not found"
+        )
+    
+    _, ext = os.path.splitext(scan.original_filename.lower())
+    
+    # If standard image, stream directly
+    if ext != ".dcm":
+        try:
+            stream = storage_service.download_scan_stream(scan_id, ext)
+            from fastapi.responses import StreamingResponse
+            return StreamingResponse(stream, media_type=scan.mime_type)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve image: {str(e)}"
+            )
+            
+    # For DICOM, convert to PNG
+    try:
+        from app.services.dicom_service import render_dicom_to_png
+        stream = storage_service.download_scan_stream(scan_id, ext)
+        png_stream = render_dicom_to_png(stream, frame_index=frame)
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(png_stream, media_type="image/png")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to render DICOM image: {str(e)}"
+        )
+
+

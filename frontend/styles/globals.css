@@ -289,3 +289,346 @@ p {
   font-size: 1rem;
 }
 
+/* DICOM Viewer Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-container {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.viewer-viewport {
+  background-color: #000;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  height: 380px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.viewer-image {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transition: transform 0.1s ease-out;
+}
+
+.viewer-image-fallback {
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.viewer-info-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(15, 23, 42, 0.6);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.05);
+  pointer-events: none;
+}
+
+.viewer-info-overlay-right {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(15, 23, 42, 0.6);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.05);
+  pointer-events: none;
+}
+
+.viewer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background-color: rgba(15, 23, 42, 0.3);
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.viewer-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  background: var(--border-color);
+  outline: none;
+  border-radius: 3px;
+}
+
+.viewer-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.viewer-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1.5rem;
+  font-size: 0.825rem;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.metadata-label {
+  color: var(--text-muted);
+}
+
+.metadata-value {
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background-color: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.clickable-row:hover {
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(15px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+
+/* Stacked layers support */
+.viewer-layers-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+}
+
+.viewer-layer-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+/* Two column viewer layout */
+.modal-body-two-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+@media (min-width: 992px) {
+  .modal-body-two-col {
+    grid-template-columns: 1fr 340px;
+  }
+}
+
+.viewer-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0; /* Prevents overflow inside grid */
+}
+
+.viewer-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-left: 1px solid var(--border-color);
+  padding-left: 1.5rem;
+  min-width: 0;
+}
+
+@media (max-width: 991px) {
+  .viewer-right-col {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1.5rem;
+  }
+}
+
+/* Lesion listing styling */
+.lesions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  max-height: 250px;
+  padding-right: 0.25rem;
+}
+
+.lesion-card {
+  background-color: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.2s;
+}
+
+.lesion-card:hover {
+  border-color: var(--primary);
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.lesion-card-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--foreground);
+}
+
+.lesion-card-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.priority-high-text {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+.priority-medium-text {
+  color: #fde047;
+  font-weight: 700;
+}
+
+.priority-low-text {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--foreground);
+}
+
+

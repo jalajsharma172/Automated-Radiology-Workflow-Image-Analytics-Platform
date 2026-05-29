@@ -17,6 +17,7 @@ from app.models.user import User
 from app.models.scan import Scan
 from app.models.prediction import Prediction
 from app.models.report import Report
+from app.models.study import Study
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

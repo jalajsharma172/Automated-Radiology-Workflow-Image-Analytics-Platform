@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.models.prediction import Prediction
     from app.models.report import Report
+    from app.models.study import Study
 
 class ScanStatus(str, enum.Enum):
     UPLOADED = "uploaded"
@@ -24,6 +25,14 @@ class Scan(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), 
         nullable=False
+    )
+    study_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("studies.id", ondelete="CASCADE"), 
+        nullable=True
+    )
+    scan_type: Mapped[Optional[str]] = mapped_column(
+        String(50), 
+        nullable=True
     )
     file_url: Mapped[str] = mapped_column(String(512), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -42,6 +51,7 @@ class Scan(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="scans")
+    study: Mapped[Optional["Study"]] = relationship("Study", back_populates="scans")
     predictions: Mapped[List["Prediction"]] = relationship(
         "Prediction", 
         back_populates="scan", 
