@@ -596,7 +596,7 @@ export default function Home() {
                               {lesion.volume > 2.0 && <span className="priority-high-text" style={{ fontSize: '0.7rem' }}>(Critical)</span>}
                             </span>
                             <span className="priority-high-text" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                              SUV max: {lesion.max_suv.toFixed(0)}
+                              SUV max: {lesion.max_suv.toFixed(1)}
                             </span>
                           </div>
                           <div className="lesion-card-body">

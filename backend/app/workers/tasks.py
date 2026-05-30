@@ -7,6 +7,62 @@ from app.models.scan import Scan, ScanStatus
 
 logger = logging.getLogger(__name__)
 
+def get_suv_parameters(ds):
+    """
+    Extracts scaling and decay parameters from a PET slice dataset to convert raw pixel values to SUV.
+    """
+    try:
+        slope = float(getattr(ds, "RescaleSlope", 1.0))
+        intercept = float(getattr(ds, "RescaleIntercept", 0.0))
+        weight_kg = float(getattr(ds, "PatientWeight", 70.0))
+        weight_g = weight_kg * 1000.0
+        
+        # Check units
+        units = getattr(ds, "Units", "")
+        
+        # Try to find radionuclide info
+        rad_seq = ds.RadiopharmaceuticalInformationSequence[0]
+        total_dose = float(getattr(rad_seq, "RadionuclideTotalDose", 0.0))
+        half_life = float(getattr(rad_seq, "RadionuclideHalfLife", 0.0))
+        start_time_str = getattr(rad_seq, "RadiopharmaceuticalStartTime", "")
+        
+        acq_time_str = getattr(ds, "AcquisitionTime", "")
+        if not acq_time_str:
+            acq_time_str = getattr(ds, "SeriesTime", "")
+            
+        if not acq_time_str or not start_time_str or total_dose <= 0 or half_life <= 0:
+            return None
+            
+        def to_seconds(t_str):
+            t_str = t_str.split('.')[0].zfill(6)
+            h = int(t_str[0:2])
+            m = int(t_str[2:4])
+            s = int(t_str[4:6])
+            return h * 3600.0 + m * 60.0 + s
+            
+        t_start = to_seconds(start_time_str)
+        t_acq = to_seconds(acq_time_str)
+        
+        delta_t = t_acq - t_start
+        if delta_t < 0:
+            delta_t += 24.0 * 3600.0 # Crossed midnight
+            
+        decay_factor = 2.0 ** (-delta_t / half_life)
+        decayed_dose = total_dose * decay_factor
+        
+        if decayed_dose <= 0:
+            return None
+            
+        return {
+            "slope": slope,
+            "intercept": intercept,
+            "weight_g": weight_g,
+            "decayed_dose": decayed_dose,
+            "units": units
+        }
+    except Exception:
+        return None
+
 @celery_app.task(name="app.workers.tasks.process_scan", bind=True, max_retries=3, default_retry_delay=5)
 def process_scan(self, scan_id: str):
     attempt = self.request.retries + 1
@@ -184,6 +240,7 @@ def process_study(self, study_id: str):
                     seg_z_coords.append(z)
 
                 pet_volume = np.zeros_like(seg_pixels, dtype=np.float32)
+                suv_params_list = [None] * len(seg_z_coords)
                 for idx, sz in enumerate(seg_z_coords):
                     # Find closest PET key
                     if pet_map:
@@ -193,6 +250,7 @@ def process_study(self, study_id: str):
                             p_stream = storage_service.download_file_stream(p_key)
                             ds_p = pydicom.dcmread(p_stream)
                             pet_volume[idx] = ds_p.pixel_array
+                            suv_params_list[idx] = get_suv_parameters(ds_p)
 
                 # 3D connected components (6-connectivity BFS)
                 active_voxels = np.argwhere(seg_pixels > 0)
@@ -228,9 +286,19 @@ def process_study(self, study_id: str):
 
                 for idx, comp in enumerate(components):
                     vol = len(comp) * voxel_volume_cm3
-                    pet_vals = [pet_volume[z, y, x] for z, y, x in comp]
-                    max_suv = float(max(pet_vals)) if pet_vals else 0.0
-                    mean_suv = float(np.mean(pet_vals)) if pet_vals else 0.0
+                    suv_vals = []
+                    for z, y, x in comp:
+                        raw_val = pet_volume[z, y, x]
+                        params = suv_params_list[z]
+                        if params:
+                            act_conc = raw_val * params["slope"] + params["intercept"]
+                            suv = (act_conc * params["weight_g"]) / params["decayed_dose"]
+                            suv_vals.append(suv)
+                        else:
+                            suv_vals.append(raw_val) # Fallback to raw counts
+                            
+                    max_suv = float(max(suv_vals)) if suv_vals else 0.0
+                    mean_suv = float(np.mean(suv_vals)) if suv_vals else 0.0
                     
                     z_coords = [z for z, y, x in comp]
                     center_z = float(np.mean([seg_z_coords[z] for z in z_coords]))
@@ -258,10 +326,10 @@ def process_study(self, study_id: str):
         max_vol = max([l["volume"] for l in lesions], default=0.0)
         max_suv_val = max([l["max_suv"] for l in lesions], default=0.0)
 
-        # High priority if volume > 2.0 cm3 or metabolic SUV is very high
-        if max_vol > 2.0 or max_suv_val > 1000.0:
+        # High priority if volume > 2.0 cm3 or metabolic SUV is high (> 5.0)
+        if max_vol > 2.0 or max_suv_val > 5.0:
             priority = "HIGH"
-        elif max_vol > 0.5:
+        elif max_vol > 0.5 or max_suv_val > 2.5:
             priority = "MEDIUM"
         else:
             priority = "LOW"
